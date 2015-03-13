@@ -2,6 +2,7 @@ package com.example.janar.smsreceiver;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.ParcelUuid;
@@ -22,6 +23,9 @@ public class SMSActivity extends ActionBarActivity {
 
     public static final String uuid = "A55D25C2-DA5F-40B2-B8D9-B940BF39795C";
 
+    public static final String registeredDevice = "94:94:26:08:C5:A1";
+    private static final String NAME = "BluetoothAuth";
+
     //public static final String uuid = "00001101-0000-1000-8000-00805f9b34fb";
 
     @Override
@@ -30,7 +34,8 @@ public class SMSActivity extends ActionBarActivity {
         setContentView(R.layout.activity_smsreceiver);
 
         try {
-            sendViaBluetooth( "Sample Test");
+            listenViaBluetooth("Sample Test");
+
         }catch(IOException ioe){
             Log.e(LOG_TAG, "IO Exception", ioe);
         }
@@ -43,10 +48,29 @@ public class SMSActivity extends ActionBarActivity {
         return true;
     }
 
+    protected void listenViaBluetooth(String msg) throws IOException
+    {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothServerSocket serverSocket = adapter.listenUsingRfcommWithServiceRecord(NAME, UUID.fromString(uuid));
+
+        Log.i(LOG_TAG,"Got socket connection: " + serverSocket.toString());
+
+        BluetoothSocket socket;
+        while( (socket = serverSocket.accept())  != null){
+            Log.i(LOG_TAG, "Accept socket connection: " + socket.toString());
+            if (socket.isConnected()) {
+                OutputStream outputStream = socket.getOutputStream();
+                outputStream.write(msg.getBytes());
+                outputStream.flush();
+                Log.i(LOG_TAG,"Data sent: " + msg);
+            }
+        }
+    }
+
     protected void sendViaBluetooth(String msg) throws IOException {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         //BluetoothDevice device = adapter.getRemoteDevice("74:45:8A:A0:AC:47");
-        BluetoothDevice device = adapter.getRemoteDevice("28:CF:E9:12:7D:84");
+        BluetoothDevice device = adapter.getRemoteDevice(registeredDevice);
         System.out.println(device.getName());
         for(ParcelUuid uid: device.getUuids())
            System.out.println(uid);
@@ -67,6 +91,7 @@ public class SMSActivity extends ActionBarActivity {
                 Log.e("", "Connected");
             } catch (Exception e2) {
                 Log.e("", "Couldn't establish Bluetooth connection!",e2);
+                return;
             }
         }
         OutputStream stream = socket.getOutputStream();
